@@ -1,14 +1,22 @@
 # Github Wiki Publish Action
 
 This [GitHub Action][github actions]
-publishes the contents of a directory to your project's [wiki][github wiki]
+publishes markdown documentation to your project's [wiki][github wiki]
 from a workflow.
 
-## Usage
+Page titles come from an HTML comment in each file. GitHub Wiki uses the
+filename as the visible page headline, so the action copies each document to
+`{slug}.md`.
 
-In a new or existing workflow,
-add a step using `SwiftDocOrg/github-wiki-publish-action@v1`
-with a path to a directory containing the documentation you wish to upload.
+```html
+<!-- wiki-title: External Account Binding -->
+<!-- wiki-category: Features -->
+```
+
+`wiki-title:` and `wiki-title` are both accepted. A leading `#` in the title is
+stripped. If the comment is missing, the first `#` heading is used.
+
+## Usage
 
 ```yml
 name: Documentation
@@ -20,15 +28,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v1
-      # Additional steps to generate documentation in "Documentation" directory
+      - uses: actions/checkout@v4
       - name: Upload Documentation to Wiki
-        uses: SwiftDocOrg/github-wiki-publish-action@v1
+        uses: grindsa/github-wiki-publish-action@customize_wiki_title
         with:
-          path: "Documentation"
+          path: |
+            docs
+            examples/Docker
+          exclude: architecture/**
+          generate-home: true
+          generate-sidebar: true
+          sync: true
         env:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 ```
+
+### Inputs
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `path` | required | Directory, or newline/comma-separated directories |
+| `recursive` | `false` | Include markdown files in subdirectories |
+| `exclude` | _empty_ | Glob patterns matched from each source root |
+| `generate-home` | `false` | Write `Home.md` grouped by `wiki-category` |
+| `generate-sidebar` | `false` | Write `_Sidebar.md` grouped by `wiki-category` |
+| `home-title` | repository name | Title on Home and the sidebar |
+| `home-intro` | _empty_ | Markdown inserted below the Home title |
+| `category-order` | Installation, High Availability, CA Handlers, Features, Configuration, Operations, Development, Architecture, Other | Category heading order |
+| `sync` | `false` | Delete wiki markdown pages that were not produced from the source docs |
+| `copy-assets` | `true` | Copy image files from the source directories |
+
+Internal markdown links (`[text](other.md#anchor)`) are rewritten to the
+published wiki slugs. Relative links that resolve to another published file are
+included.
 
 ## Setup
 
@@ -50,8 +82,6 @@ Navigate to the "Settings" tab for your repository,
 scroll down to the "Features" section,
 and ensure that the checkbox labeled "Wikis" is checked.
 
-![GitHub Wikis Feature](https://user-images.githubusercontent.com/7659/72726104-5f3aff80-3b3c-11ea-8f2e-fe73aff0276b.png)
-
 ### 2. Create the First Wiki Page
 
 With the Wikis feature enabled for your repository,
@@ -59,11 +89,9 @@ navigate to the "Wiki" tab.
 If prompted,
 create the first wiki page.
 
-![GitHub Wiki Create First Page](https://user-images.githubusercontent.com/7659/72726186-927d8e80-3b3c-11ea-8014-4622f8ff3226.png)
-
 ### 3. Generate a Personal Access Token
 
-Navigate to the [Personal access tokens](https://github.com/settings/tokens) page 
+Navigate to the [Personal access tokens](https://github.com/settings/tokens) page
 in your GitHub account settings
 (Settings > Developer settings > Personal access tokens)
 and click the "Generate a new token" button.
@@ -76,11 +104,9 @@ enable all of the entries under "repo" perms.
 When you're done,
 click the "Generate token" button at the bottom of the form.
 
-![GitHub Personal Access Token Select Scopes](https://user-images.githubusercontent.com/7659/72726210-9f9a7d80-3b3c-11ea-81b4-528de92fb9fa.png)
-
-> **Note**: 
+> **Note**:
 > GitHub actions have access to [a `GITHUB_TOKEN` secret][GITHUB_TOKEN],
-> but that token's permissions are limited to 
+> but that token's permissions are limited to
 > the repository that contains your workflow.
 > This workflow requires the generation of a new personal acccess token
 > to read and write to the git repository for your project's wiki.
@@ -91,8 +117,8 @@ Copy your generated personal access token to the clipboard
 and navigate to your project settings.
 Navigate to the "Secrets" page,
 click "Add a new secret",
-and fill in the form by 
-entering `GH_PERSONAL_ACCESS_TOKEN` into the "Name" field and 
+and fill in the form by
+entering `GH_PERSONAL_ACCESS_TOKEN` into the "Name" field and
 pasting your token into the "Value" field.
 
 ## License

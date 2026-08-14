@@ -1,15 +1,50 @@
 name: "Publish to GitHub Wiki"
-description: "Pushes files to a GitHub project's wiki"
+description: "Pushes markdown documentation to a GitHub project's wiki"
 
 inputs:
   path:
-    description: "A path to the directory of files to publish"
+    description: "Directory or newline/comma-separated directories to publish"
     required: true
+  recursive:
+    description: "Include markdown files in subdirectories"
+    required: false
+    default: "false"
+  exclude:
+    description: "Comma or newline-separated glob patterns to skip (matched from each source root)"
+    required: false
+    default: ""
+  generate-home:
+    description: "Generate Home.md with pages grouped by wiki-category"
+    required: false
+    default: "false"
+  generate-sidebar:
+    description: "Generate _Sidebar.md with pages grouped by wiki-category"
+    required: false
+    default: "false"
+  home-title:
+    description: "Title used on Home.md and the sidebar (defaults to the repository name)"
+    required: false
+    default: ""
+  home-intro:
+    description: "Optional markdown inserted below the Home.md title"
+    required: false
+    default: ""
+  category-order:
+    description: "Comma or newline-separated category order for Home.md and the sidebar"
+    required: false
+    default: "Installation, High Availability, CA Handlers, Features, Configuration, Operations, Development, Architecture, Other"
+  sync:
+    description: "Delete wiki markdown pages that were not produced from the source docs"
+    required: false
+    default: "false"
+  copy-assets:
+    description: "Copy image assets referenced next to markdown files"
+    required: false
+    default: "true"
 
 runs:
   using: "docker"
   image: "Dockerfile"
-  args: ["${{ inputs.path }}"]
 
 branding:
   icon: "book-open"

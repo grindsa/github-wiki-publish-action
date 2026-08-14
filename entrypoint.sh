@@ -1,11 +1,8 @@
 #!/bin/bash
+set -euo pipefail
 
 function debug() {
     echo "::debug file=${BASH_SOURCE[0]},line=${BASH_LINENO[0]}::$1"
-}
-
-function warning() {
-    echo "::warning file=${BASH_SOURCE[0]},line=${BASH_LINENO[0]}::$1"
 }
 
 function error() {
@@ -16,17 +13,17 @@ function add_mask() {
     echo "::add-mask::$1"
 }
 
-if [ -z "$GITHUB_ACTOR" ]; then
+if [ -z "${GITHUB_ACTOR:-}" ]; then
     error "GITHUB_ACTOR environment variable is not set"
     exit 1
 fi
 
-if [ -z "$GITHUB_REPOSITORY" ]; then
+if [ -z "${GITHUB_REPOSITORY:-}" ]; then
     error "GITHUB_REPOSITORY environment variable is not set"
     exit 1
 fi
 
-if [ -z "$GH_PERSONAL_ACCESS_TOKEN" ]; then
+if [ -z "${GH_PERSONAL_ACCESS_TOKEN:-}" ]; then
     error "GH_PERSONAL_ACCESS_TOKEN environment variable is not set"
     exit 1
 fi
@@ -38,38 +35,38 @@ if [ -z "${WIKI_COMMIT_MESSAGE:-}" ]; then
     WIKI_COMMIT_MESSAGE='Automatically publish wiki'
 fi
 
-GIT_REPOSITORY_URL="https://${GH_PERSONAL_ACCESS_TOKEN}@github.com/$GITHUB_REPOSITORY.wiki.git"
+if [ -z "${INPUT_PATH:-}" ] && [ "${#}" -gt 0 ]; then
+    export INPUT_PATH="${1}"
+fi
+
+GIT_REPOSITORY_URL="https://${GH_PERSONAL_ACCESS_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
 
 debug "Checking out wiki repository"
-tmp_dir=$(mktemp -d -t ci-XXXXXXXXXX)
+tmp_dir="$(mktemp -d -t ci-XXXXXXXXXX)"
+cleanup() {
+    rm -rf "${tmp_dir}"
+}
+trap cleanup EXIT
+
 (
-    cd "$tmp_dir" || exit 1
+    cd "${tmp_dir}"
     git init
-    git config user.name "$GITHUB_ACTOR"
-    git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-    git pull "$GIT_REPOSITORY_URL"
+    git config user.name "${GITHUB_ACTOR}"
+    git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+    git pull "${GIT_REPOSITORY_URL}"
 )
 
-debug "Enumerating contents of $1"
-for file in $(find $1 -maxdepth 1 -type f -name '*.md' -execdir basename '{}' ';'); do
-    debug "Copying $file"
-    wiki_name=$(grep '<!-- wiki-title' $1/$file | sed 's/<!-- wiki-title //g' | sed 's/-->//g' | sed 's/ *$//g' | sed 's/\ /-/g')
-    if [ -z "$wiki_name" ]
-    then
-        cp "$1/$file" "$tmp_dir"
-    else
-        debug "Renaming $file to $wiki_name.md"
-        cp "$1/$file" "$tmp_dir"/"$wiki_name.md"
-    fi
-done
+debug "Preparing wiki pages from ${INPUT_PATH}"
+python3 /publish_wiki.py --dest "${tmp_dir}" --workspace "${GITHUB_WORKSPACE:-$(pwd)}"
 
 debug "Committing and pushing changes"
 (
-    cd "$tmp_dir" || exit 1
-    git add .
-    git commit -m "$WIKI_COMMIT_MESSAGE"
-    git push --set-upstream "$GIT_REPOSITORY_URL" master
+    cd "${tmp_dir}"
+    git add -A
+    if git diff --cached --quiet; then
+        echo "No wiki changes to publish"
+        exit 0
+    fi
+    git commit -m "${WIKI_COMMIT_MESSAGE}"
+    git push --set-upstream "${GIT_REPOSITORY_URL}" master
 )
-
-rm -rf "$tmp_dir"
-exit 0
