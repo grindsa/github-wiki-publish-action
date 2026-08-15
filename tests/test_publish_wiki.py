@@ -80,15 +80,23 @@ def test_publish_renames_pages_rewrites_links_and_builds_home(tmp_path: Path) ->
     eab = (dest / "External-Account-Binding.md").read_text(encoding="utf-8")
     assert "[housekeeping](Reporting-and-Housekeeping#reports)" in eab
     assert "[vault](Hashicorp-Vault-PKI-CA-handler)" in eab
+    assert '<table align="right">' in eab
+    assert "<strong>Operations</strong>" in eab
+    assert '<a href="Reporting-and-Housekeeping">Reporting and Housekeeping</a>' in eab
+    assert eab.index("# External Account Binding") < eab.index('<table align="right">')
 
     home = (dest / "Home.md").read_text(encoding="utf-8")
     assert home.startswith("# Welcome to the acme2certifier wiki\n")
     assert home.index("## CA Handlers") < home.index("## Features") < home.index("## Operations")
     assert "- [External Account Binding](External-Account-Binding)" in home
     sidebar = (dest / "_Sidebar.md").read_text(encoding="utf-8")
-    assert "[Welcome to the acme2certifier wiki](Home)" in sidebar
-    assert "### Operations" in sidebar
-    assert "- [Reporting and Housekeeping](Reporting-and-Housekeeping)" in sidebar
+    assert sidebar.startswith("# Navigation\n")
+    assert "- [Home](Home)" in sidebar
+    assert "- **Operations**" in sidebar
+    assert "  - [Reporting and Housekeeping](Reporting-and-Housekeeping)" in sidebar
+    assert sidebar.index("- **CA Handlers**") < sidebar.index("- **Features**") < sidebar.index(
+        "- **Operations**"
+    )
 
 
 def test_exclude_and_sync_remove_unpublished_pages(tmp_path: Path) -> None:

@@ -51,9 +51,11 @@ jobs:
 | `recursive` | `false` | Include markdown files in subdirectories |
 | `exclude` | _empty_ | Glob patterns matched from each source root |
 | `generate-home` | `false` | Write `Home.md` grouped by `wiki-category` |
-| `generate-sidebar` | `false` | Write `_Sidebar.md` grouped by `wiki-category` |
-| `home-title` | repository name | Title on Home and the sidebar |
+| `generate-sidebar` | `false` | Write `_Sidebar.md` (often hidden in GitHub's current wiki UI) |
+| `inject-nav` | `true` | Insert a grouped navigation block into every wiki page |
+| `home-title` | repository name | Title on Home.md |
 | `home-intro` | _empty_ | Markdown inserted below the Home title |
+| `sidebar-title` | `Navigation` | Heading at the top of `_Sidebar.md` |
 | `category-order` | Installation, High Availability, CA Handlers, Features, Configuration, Operations, Development, Architecture, Other | Category heading order |
 | `sync` | `false` | Delete wiki markdown pages that were not produced from the source docs |
 | `copy-assets` | `true` | Copy image files from the source directories |
@@ -61,6 +63,11 @@ jobs:
 Internal markdown links (`[text](other.md#anchor)`) are rewritten to the
 published wiki slugs. Relative links that resolve to another published file are
 included.
+
+With `inject-nav: true` (the default) each wiki page gets a grouped
+navigation block after its title. GitHub's current wiki UI no longer renders
+`_Sidebar.md` as a side column, so the in-page nav is what readers see.
+`generate-sidebar: true` still writes `_Sidebar.md` for older wiki layouts.
 
 ## Setup
 

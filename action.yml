@@ -18,9 +18,13 @@ inputs:
     required: false
     default: "false"
   generate-sidebar:
-    description: "Generate _Sidebar.md with pages grouped by wiki-category"
+    description: "Generate _Sidebar.md as a right-hand nav of wiki-category groups and pages"
     required: false
     default: "false"
+  inject-nav:
+    description: "Insert a grouped navigation block into every wiki page (GitHub no longer shows _Sidebar.md as a column)"
+    required: false
+    default: "true"
   home-title:
     description: "Title used on Home.md and the sidebar (defaults to the repository name)"
     required: false
@@ -29,6 +33,10 @@ inputs:
     description: "Optional markdown inserted below the Home.md title"
     required: false
     default: ""
+  sidebar-title:
+    description: "Heading shown at the top of the right-hand wiki navigation"
+    required: false
+    default: "Navigation"
   category-order:
     description: "Comma or newline-separated category order for Home.md and the sidebar"
     required: false

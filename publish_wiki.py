@@ -59,8 +59,10 @@ class PublishConfig:
     exclude: list[str] = field(default_factory=list)
     generate_home: bool = False
     generate_sidebar: bool = False
+    inject_nav: bool = True
     home_title: str = ""
     home_intro: str = ""
+    sidebar_title: str = "Navigation"
     category_order: list[str] = field(default_factory=lambda: list(DEFAULT_CATEGORY_ORDER))
     sync: bool = False
     copy_assets: bool = True
@@ -275,18 +277,71 @@ def render_index(
     return "\n".join(lines)
 
 
+def html_escape(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def render_in_page_nav(
+    pages: Sequence[WikiPage],
+    category_order: Sequence[str],
+    sidebar_title: str = "Navigation",
+) -> str:
+    """Visible grouped nav baked into each wiki page.
+
+    GitHub's current wiki UI no longer shows `_Sidebar.md` as a side column,
+    so the same tree is inserted into page content. A right-aligned table is
+    used when the renderer honors ``align="right"``; otherwise it still appears
+    at the top of the article.
+    """
+    items = ['<li><a href="Home">Home</a></li>']
+    for category, group in grouped_pages(pages, category_order):
+        children = "".join(
+            f'<li><a href="{html_escape(page.slug)}">{html_escape(page.title)}</a></li>'
+            for page in group
+        )
+        items.append(
+            f"<li><strong>{html_escape(category)}</strong><ul>{children}</ul></li>"
+        )
+    title = html_escape(sidebar_title.strip() or "Navigation")
+    return (
+        f'<table align="right"><tr><td valign="top">'
+        f"<p><strong>{title}</strong></p><ul>{''.join(items)}</ul>"
+        f"</td></tr></table>\n"
+    )
+
+
+def insert_nav(content: str, nav: str) -> str:
+    if not nav:
+        return content
+    match = H1_RE.search(content)
+    if not match:
+        return nav + "\n" + content
+    heading_end = match.end()
+    if heading_end < len(content) and content[heading_end] == "\n":
+        heading_end += 1
+    return content[:heading_end] + "\n" + nav + content[heading_end:]
+
+
 def render_sidebar(
     pages: Sequence[WikiPage],
     category_order: Sequence[str],
-    home_title: str,
+    sidebar_title: str = "Navigation",
 ) -> str:
-    lines = [f"[{home_title}](Home)", ""]
+    """GitHub Wiki renders `_Sidebar.md` as the right-hand page navigation."""
+    lines: list[str] = []
+    if sidebar_title.strip():
+        lines.extend([f"# {sidebar_title.strip()}", ""])
+    lines.append("- [Home](Home)")
     for category, group in grouped_pages(pages, category_order):
-        lines.append(f"### {category}")
-        lines.append("")
+        lines.append(f"- **{category}**")
         for page in group:
-            lines.append(f"- [{page.title}]({page.slug})")
-        lines.append("")
+            lines.append(f"  - [{page.title}]({page.slug})")
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -311,8 +366,15 @@ def publish(config: PublishConfig) -> list[WikiPage]:
     link_map = build_link_map(pages)
     written: set[str] = set()
 
+    nav = (
+        render_in_page_nav(pages, config.category_order, config.sidebar_title)
+        if config.inject_nav
+        else ""
+    )
     for page in pages:
         rewritten = rewrite_markdown_links(page.content, page.source, link_map)
+        if nav:
+            rewritten = insert_nav(rewritten, nav)
         destination = config.dest / f"{page.slug}.md"
         destination.write_text(rewritten, encoding="utf-8")
         written.add(destination.name)
@@ -323,7 +385,7 @@ def publish(config: PublishConfig) -> list[WikiPage]:
         (config.dest / "Home.md").write_text(home, encoding="utf-8")
         written.add("Home.md")
     if config.generate_sidebar:
-        sidebar = render_sidebar(pages, config.category_order, home_title)
+        sidebar = render_sidebar(pages, config.category_order, config.sidebar_title)
         (config.dest / "_Sidebar.md").write_text(sidebar, encoding="utf-8")
         written.add("_Sidebar.md")
 
@@ -354,8 +416,10 @@ def config_from_env(dest: Path, workspace: Path, sources: Sequence[str] | None =
         exclude=split_multi(env_or_default("INPUT_EXCLUDE")),
         generate_home=parse_bool(env_or_default("INPUT_GENERATE_HOME"), False),
         generate_sidebar=parse_bool(env_or_default("INPUT_GENERATE_SIDEBAR"), False),
+        inject_nav=parse_bool(env_or_default("INPUT_INJECT_NAV"), True),
         home_title=home_title,
         home_intro=env_or_default("INPUT_HOME_INTRO"),
+        sidebar_title=env_or_default("INPUT_SIDEBAR_TITLE", "Navigation"),
         category_order=category_order,
         sync=parse_bool(env_or_default("INPUT_SYNC"), False),
         copy_assets=parse_bool(env_or_default("INPUT_COPY_ASSETS"), True),
