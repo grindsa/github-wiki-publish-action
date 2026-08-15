@@ -27,6 +27,12 @@ def test_extract_meta_accepts_colon_hash_and_legacy_name() -> None:
     assert wiki.extract_meta(missing, "fallback")[0] == "Vault Handler"
 
 
+def test_env_or_default_accepts_docker_hyphenated_input_names(monkeypatch) -> None:
+    monkeypatch.setenv("INPUT_GENERATE-HOME", "true")
+    monkeypatch.delenv("INPUT_GENERATE_HOME", raising=False)
+    assert wiki.parse_bool(wiki.env_or_default("INPUT_GENERATE_HOME"), False) is True
+
+
 def test_slugify_strips_markup_and_unsafe_filename_chars() -> None:
     assert wiki.slugify("# How to build a cluster") == "How-to-build-a-cluster"
     assert wiki.slugify("Asynchronous Mode (`async_mode`)") == "Asynchronous-Mode-async_mode"
@@ -80,10 +86,10 @@ def test_publish_renames_pages_rewrites_links_and_builds_home(tmp_path: Path) ->
     eab = (dest / "External-Account-Binding.md").read_text(encoding="utf-8")
     assert "[housekeeping](Reporting-and-Housekeeping#reports)" in eab
     assert "[vault](Hashicorp-Vault-PKI-CA-handler)" in eab
-    assert '<table align="right">' in eab
-    assert "<strong>Operations</strong>" in eab
-    assert '<a href="Reporting-and-Housekeeping">Reporting and Housekeeping</a>' in eab
-    assert eab.index("# External Account Binding") < eab.index('<table align="right">')
+    assert eab.index("# External Account Binding") < eab.index("**Navigation**")
+    assert "- **Operations**" in eab
+    assert "  - [Reporting and Housekeeping](Reporting-and-Housekeeping)" in eab
+    assert '<table align="right">' not in eab
 
     home = (dest / "Home.md").read_text(encoding="utf-8")
     assert home.startswith("# Welcome to the acme2certifier wiki\n")

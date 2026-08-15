@@ -39,6 +39,14 @@ if [ -z "${INPUT_PATH:-}" ] && [ "${#}" -gt 0 ]; then
     export INPUT_PATH="${1}"
 fi
 
+# Docker actions expose inputs as INPUT_GENERATE-HOME; Python expects INPUT_GENERATE_HOME.
+while IFS= read -r var; do
+    underscored="${var//-/_}"
+    if [ "${underscored}" != "${var}" ]; then
+        export "${underscored}=$(printenv "${var}")"
+    fi
+done < <(compgen -e | grep '^INPUT_')
+
 GIT_REPOSITORY_URL="https://${GH_PERSONAL_ACCESS_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
 
 debug "Checking out wiki repository"

@@ -86,10 +86,27 @@ def split_multi(value: str | None) -> list[str]:
 
 
 def env_or_default(name: str, default: str = "") -> str:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value
+    """Read an action input from the environment.
+
+    Composite/JS actions expose ``INPUT_GENERATE_HOME``.
+    Docker actions keep hyphens in the input name: ``INPUT_GENERATE-HOME``.
+    """
+    if name.startswith("INPUT_"):
+        hyphenated = "INPUT_" + name[len("INPUT_") :].replace("_", "-")
+    else:
+        hyphenated = name.replace("_", "-")
+    empty: str | None = None
+    for candidate in (name, hyphenated):
+        if candidate not in os.environ:
+            continue
+        value = os.environ[candidate]
+        if value != "":
+            return value
+        if empty is None:
+            empty = value
+    if empty is not None:
+        return empty
+    return default
 
 
 def slugify(title: str) -> str:
@@ -277,42 +294,23 @@ def render_index(
     return "\n".join(lines)
 
 
-def html_escape(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
-
-
 def render_in_page_nav(
     pages: Sequence[WikiPage],
     category_order: Sequence[str],
     sidebar_title: str = "Navigation",
 ) -> str:
-    """Visible grouped nav baked into each wiki page.
+    """Grouped nav baked into each wiki page as markdown.
 
-    GitHub's current wiki UI no longer shows `_Sidebar.md` as a side column,
-    so the same tree is inserted into page content. A right-aligned table is
-    used when the renderer honors ``align="right"``; otherwise it still appears
-    at the top of the article.
+    GitHub's current wiki UI does not show `_Sidebar.md` as a side column,
+    and it often strips HTML tables, so this uses markdown lists.
     """
-    items = ['<li><a href="Home">Home</a></li>']
+    lines = [f"**{sidebar_title.strip() or 'Navigation'}**", "", "- [Home](Home)"]
     for category, group in grouped_pages(pages, category_order):
-        children = "".join(
-            f'<li><a href="{html_escape(page.slug)}">{html_escape(page.title)}</a></li>'
-            for page in group
-        )
-        items.append(
-            f"<li><strong>{html_escape(category)}</strong><ul>{children}</ul></li>"
-        )
-    title = html_escape(sidebar_title.strip() or "Navigation")
-    return (
-        f'<table align="right"><tr><td valign="top">'
-        f"<p><strong>{title}</strong></p><ul>{''.join(items)}</ul>"
-        f"</td></tr></table>\n"
-    )
+        lines.append(f"- **{category}**")
+        for page in group:
+            lines.append(f"  - [{page.title}]({page.slug})")
+    lines.extend(["", "---", ""])
+    return "\n".join(lines)
 
 
 def insert_nav(content: str, nav: str) -> str:
@@ -444,7 +442,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as exc:  # noqa: BLE001 - surface a concise action error
         print(f"::error::{exc}", file=sys.stderr)
         return 1
-    print(f"Prepared {len(pages)} wiki page(s) in {dest}")
+    print(
+        "Wiki publish config: "
+        f"generate_home={config.generate_home} "
+        f"generate_sidebar={config.generate_sidebar} "
+        f"inject_nav={config.inject_nav} "
+        f"sync={config.sync} "
+        f"sources={[str(path) for path in config.sources]}"
+    )
     for page in sort_pages(pages, config.category_order):
         print(f"  [{page.category}] {page.title} -> {page.slug}.md")
     return 0
