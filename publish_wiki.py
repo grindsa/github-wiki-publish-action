@@ -280,9 +280,9 @@ def render_sidebar(
     category_order: Sequence[str],
     home_title: str,
 ) -> str:
-    lines = [f"**[{home_title}](Home)**", ""]
+    lines = [f"[{home_title}](Home)", ""]
     for category, group in grouped_pages(pages, category_order):
-        lines.append(f"**{category}**")
+        lines.append(f"### {category}")
         lines.append("")
         for page in group:
             lines.append(f"- [{page.title}]({page.slug})")

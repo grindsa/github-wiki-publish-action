@@ -65,8 +65,8 @@ def test_publish_renames_pages_rewrites_links_and_builds_home(tmp_path: Path) ->
         workspace=tmp_path,
         generate_home=True,
         generate_sidebar=True,
-        home_title="acme2certifier",
-        home_intro="Published from the repository.",
+        home_title="Welcome to the acme2certifier wiki",
+        home_intro="",
         sync=True,
     )
     pages = wiki.publish(config)
@@ -82,10 +82,12 @@ def test_publish_renames_pages_rewrites_links_and_builds_home(tmp_path: Path) ->
     assert "[vault](Hashicorp-Vault-PKI-CA-handler)" in eab
 
     home = (dest / "Home.md").read_text(encoding="utf-8")
+    assert home.startswith("# Welcome to the acme2certifier wiki\n")
     assert home.index("## CA Handlers") < home.index("## Features") < home.index("## Operations")
     assert "- [External Account Binding](External-Account-Binding)" in home
     sidebar = (dest / "_Sidebar.md").read_text(encoding="utf-8")
-    assert "**[acme2certifier](Home)**" in sidebar
+    assert "[Welcome to the acme2certifier wiki](Home)" in sidebar
+    assert "### Operations" in sidebar
     assert "- [Reporting and Housekeeping](Reporting-and-Housekeeping)" in sidebar
 
 
